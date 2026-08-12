@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Telegram Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: #0d0d0d;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 60vh;
+        }
+        .ui-container {
+            text-align: center;
+            z-index: 10;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+        .btn {
+            background: linear-gradient(45deg, #00ffcc, #0077ff);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 119, 255, 0.4);
+            transition: 0.3s;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-container">
+        <h1>Cyber 3D Panel</h1>
+        <button class="btn" onclick="sendDataToBot()">Click & Send</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Telegram WebApp Initialization
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Three.js Scene Setup
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / container.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        renderer.setSize(window.innerWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // Create a 3D Glowing Cube
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0x00ffcc, 
+            roughness: 0.2, 
+            metalness: 0.8 
+        });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+
+        // Add Lighting
+        const light = new THREE.PointLight(0xffffff, 3, 50);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+
+        camera.position.z = 5;
+
+        // Animation Loop (Rotation)
+        function animate() {
+            requestAnimationFrame(animate);
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Function to send data back to the Telegram Bot
+        function sendDataToBot() {
+            let data = JSON.stringify({ action: "clicked_3d_button", status: "success" });
+            tg.sendData(data); // Yeh bot ko data wapas bhej dega
+            tg.close();        // Mini app close ho jayegi
+        }
+    </script>
+</body>
+</html>
