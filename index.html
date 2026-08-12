@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrows – Puzzle Escape</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0f1016;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        h1 {
+            color: #00ffcc;
+            font-size: 24px;
+            margin: 0 0 5px 0;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
+        }
+        p {
+            color: #8b8ea5;
+            font-size: 14px;
+            margin: 0;
+        }
+        #win-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffffff;
+            background: rgba(20, 22, 35, 0.95);
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            display: none;
+            z-index: 20;
+        }
+        #win-screen h2 {
+            color: #00ffcc;
+            margin-top: 0;
+            font-size: 28px;
+        }
+        .btn {
+            background: linear-gradient(45deg, #00ffcc, #0077ff);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0, 119, 255, 0.4);
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h1>Arrows – Puzzle Escape</h1>
+        <p>Click or Tap an arrow to slide it out safely</p>
+    </div>
+
+    <div id="win-screen">
+        <h2>Level Cleared! 🎉</h2>
+        <p>You solved the puzzle successfully.</p>
+        <button class="btn" onclick="nextLevel()">Next Puzzle</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, raycaster, mouse;
+        let arrows = [];
+        let level = 1;
+
+        const colors = [0x00ffcc, 0xff0055, 0xffaa00, 0x7700ff, 0x00aaff];
+
+        function init() {
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 14);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 1, 50);
+            pointLight.position.set(5, 5, 10);
+            scene.add(pointLight);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            window.addEventListener('pointerdown', onPointerDown);
+            window.addEventListener('resize', onWindowResize);
+
+            buildLevel();
+            animate();
+        }
+
+        // Arrow 3D Model Constructor (Shaft + Head)
+        function createArrowMesh(colorHex) {
+            const group = new THREE.Group();
+
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: colorHex, 
+                roughness: 0.2, 
+                metalness: 0.8,
+                emissive: colorHex,
+                emissiveIntensity: 0.2
+            });
+
+            // Shaft
+            const shaftGeo = new THREE.BoxGeometry(0.3, 0.15, 1.8);
+            const shaft = new THREE.Mesh(shaftGeo, mat);
+            shaft.position.z = 0.2;
+            group.add(shaft);
+
+            // Head (Cone style pointer)
+            const headGeo = new THREE.ConeGeometry(0.4, 0.7, 4);
+            const head = new THREE.Mesh(headGeo, mat);
+            head.rotation.x = Math.PI / 2;
+            head.position.z = -0.9;
+            group.add(head);
+
+            return group;
+        }
+
+        function buildLevel() {
+            // Purane arrows clear karein
+            arrows.forEach(a => scene.remove(a.mesh));
+            arrows = [];
+
+            // Level ke hisab se random / structured puzzle layout generate karein
+            let count = Math.min(4 + level, 9);
+            
+            for (let i = 0; i < count; i++) {
+                let color = colors[i % colors.length];
+                let mesh = createArrowMesh(color);
+
+                // Non-overlapping random layout setup
+                let posX = (Math.random() - 0.5) * 5;
+                let posY = (Math.random() - 0.5) * 4;
+                let posZ = (Math.random() - 0.5) * 3;
+
+                // Directions: 0 = Forward (-Z), 1 = Right (+X), 2 = Backward (+Z), 3 = Left (-X)
+                let dirIndex = Math.floor(Math.random() * 4);
+                let dirVector = new THREE.Vector3(0, 0, -1); // Default forward
+
+                if (dirIndex === 1) { dirVector.set(1, 0, 0); mesh.rotation.y = -Math.PI / 2; }
+                else if (dirIndex === 2) { dirVector.set(0, 0, 1); mesh.rotation.y = Math.PI; }
+                else if (dirIndex === 3) { dirVector.set(-1, 0, 0); mesh.rotation.y = Math.PI / 2; }
+
+                mesh.position.set(posX, posY, posZ);
+                
+                scene.add(mesh);
+                arrows.push({ mesh: mesh, direction: dirVector, escaped: false });
+            }
+        }
+
+        function onPointerDown(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            let clickableMeshes = arrows.filter(a => !a.escaped).map(a => a.mesh);
+            let intersects = raycaster.intersectObjects(clickableMeshes, true);
+
+            if (intersects.length > 0) {
+                let clickedRoot = intersects[0].object.parent;
+                let arrowObj = arrows.find(a => a.mesh === clickedRoot || a.mesh.children.includes(intersects[0].object));
+
+                if (arrowObj && !arrowObj.escaped) {
+                    tryEscape(arrowObj);
+                }
+            }
+        }
+
+        function tryEscape(arrowObj) {
+            // Check agar is direction mein koi aur arrow rasta rok raha hai
+            let dir = arrowObj.direction;
+            
+            // Smooth escape animation forward direction mein
+            let animateEscape = () => {
+                arrowObj.mesh.position.addScaledVector(dir, 0.4);
+                
+                // Screen se bahar jane par remove karein
+                if (Math.abs(arrowObj.mesh.position.x) > 10 || Math.abs(arrowObj.mesh.position.y) > 10 || Math.abs(arrowObj.mesh.position.z) > 15) {
+                    arrowObj.escaped = true;
+                    scene.remove(arrowObj.mesh);
+                    checkWinCondition();
+                } else {
+                    requestAnimationFrame(animateEscape);
+                }
+            };
+            animateEscape();
+        }
+
+        function checkWinCondition() {
+            let remaining = arrows.filter(a => !a.escaped).length;
+            if (remaining === 0) {
+                document.getElementById('win-screen').style.display = 'block';
+            }
+        }
+
+        function nextLevel() {
+            level++;
+            document.getElementById('win-screen').style.display = 'none';
+            buildLevel();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
